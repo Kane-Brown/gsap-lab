@@ -8,6 +8,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory(),
+  // 用 Vite 的 BASE_URL,本地是 '/',线上 Pages 是 '/gsap-lab/'
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
