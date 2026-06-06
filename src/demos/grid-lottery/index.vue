@@ -38,34 +38,47 @@ onUnmounted(() => {
   ctx?.revert()
 })
 
+// 逐步时长:从快(minDur)平滑爬升到有上限的慢(maxDur)。
+// 关键点 —— 减速分摊到末尾的每一步上,且任何一步都 ≤ maxDur,
+// 所以不会出现"某一格被冻住一秒再跳走"的卡顿。
+const MIN_DUR = 0.045 // 起步每格停留(秒),快
+const MAX_DUR = 0.2 // 最后一格停留(秒),慢但有上限
+const DECEL_POWER = 3 // 越大,减速越集中在末尾
+
 function start() {
   if (spinning.value) return
   spinning.value = true
   result.value = null
 
   // 1) 先定结果(真实业务里这里换成后端返回的中奖下标)
-  const target = Math.floor(Math.random() * prizes.length)
+  const N = prizes.length
+  const target = Math.floor(Math.random() * N)
 
-  // 2) 多转几圈再停:总步数 = 整圈数 * 8 + 目标位置
+  // 2) 多转几圈再停:总步数 = 整圈数 × 8 + 目标位置,落点恰好是 target
   const rounds = 4
-  const finalSteps = rounds * prizes.length + target
+  const steps = rounds * N + target
 
-  // 3) 用一个数值补间驱动高亮:power3.out 先快后慢,营造减速停下的手感
-  const counter = { v: 0 }
+  // 3) 用时间轴把高亮一格一格往前推,每格停留时长按曲线递增 -> 平滑减速
   ctx!.add(() => {
-    gsap.to(counter, {
-      v: finalSteps,
-      duration: 4,
-      ease: 'power3.out',
-      onUpdate() {
-        activeIndex.value = Math.floor(counter.v) % prizes.length
-      },
+    const tl = gsap.timeline({
       onComplete() {
-        activeIndex.value = target // 落点对齐,消除浮点误差
+        activeIndex.value = target // 落点对齐,消除任何误差
         result.value = prizes[target]
         spinning.value = false
       },
     })
+    const cursor = { i: 0 }
+    for (let i = 1; i <= steps; i++) {
+      const dur = MIN_DUR + (MAX_DUR - MIN_DUR) * Math.pow(i / steps, DECEL_POWER)
+      tl.to(cursor, {
+        i,
+        duration: dur,
+        ease: 'none',
+        onStart() {
+          activeIndex.value = i % N // 这一步开始时点亮对应格,停留 dur
+        },
+      })
+    }
   })
 }
 </script>
