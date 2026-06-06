@@ -38,12 +38,12 @@ onUnmounted(() => {
   ctx?.revert()
 })
 
-// 逐步时长:从快(minDur)平滑爬升到有上限的慢(maxDur)。
-// 关键点 —— 减速分摊到末尾的每一步上,且任何一步都 ≤ maxDur,
-// 所以不会出现"某一格被冻住一秒再跳走"的卡顿。
-const MIN_DUR = 0.045 // 起步每格停留(秒),快
-const MAX_DUR = 0.2 // 最后一格停留(秒),慢但有上限
-const DECEL_POWER = 3 // 越大,减速越集中在末尾
+// 逐步时长:前段匀速快转,末尾若干格按"几何级数"拉长停留时间。
+// 几何级数(每一下 ≈ 上一下的固定倍数)才能让人明显感到"在变慢" ——
+// 滴…滴..滴. 滴。;最后一格停 TAIL_MAX_DUR(明显但不卡死)。
+const SPIN_DUR = 0.05 // 前段匀速快转每格停留(秒)
+const TAIL_STEPS = 7 // 末尾做减速的格数
+const TAIL_MAX_DUR = 0.45 // 最后一格停留(秒)—— 决定收尾"最后一下"的戏剧感
 
 function start() {
   if (spinning.value) return
@@ -69,7 +69,15 @@ function start() {
     })
     const cursor = { i: 0 }
     for (let i = 1; i <= steps; i++) {
-      const dur = MIN_DUR + (MAX_DUR - MIN_DUR) * Math.pow(i / steps, DECEL_POWER)
+      const fromEnd = steps - i // 0 = 最后一格
+      let dur: number
+      if (fromEnd >= TAIL_STEPS) {
+        dur = SPIN_DUR // 前段:匀速快转,营造"飞快旋转"
+      } else {
+        // 末段:几何级数递增,j 越大越慢,最后一格 = TAIL_MAX_DUR
+        const j = TAIL_STEPS - fromEnd // 1..TAIL_STEPS
+        dur = SPIN_DUR * Math.pow(TAIL_MAX_DUR / SPIN_DUR, j / TAIL_STEPS)
+      }
       tl.to(cursor, {
         i,
         duration: dur,
