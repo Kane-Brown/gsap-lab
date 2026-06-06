@@ -2,7 +2,7 @@ import type { DemoMeta } from '../../registry'
 
 export default {
   title: '抢/拆红包',
-  desc: '红包抖动 + 拆开金币爆发飞向余额',
-  status: 'todo',
+  desc: '抖动→翻盖→金额滚动→金币飞向余额',
+  status: 'done',
   icon: '🧧',
 } satisfies DemoMeta
